@@ -12,7 +12,12 @@ class Config:
     DEBUG = os.getenv('FLASK_DEBUG', '0') == '1'
 
     # Database
-    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL')
+    # Handle Render's database URL format
+    database_url = os.getenv('DATABASE_URL')
+    if database_url and database_url.startswith("postgres://"):
+        database_url = database_url.replace("postgres://", "postgresql://", 1)
+    
+    SQLALCHEMY_DATABASE_URI = database_url
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # Email Configuration
