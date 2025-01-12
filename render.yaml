@@ -30,6 +30,19 @@ services:
         generateValue: true
       - key: PASSWORD_SALT
         generateValue: true
+      # Mailgun Configuration
+      - key: MAILGUN_API_KEY
+        sync: false
+      - key: MAILGUN_DOMAIN
+        sync: false
+      - key: MAILGUN_WEBHOOK_SIGNING_KEY
+        sync: false
+      - key: NEWSLETTER_RECEIVING_EMAIL
+        sync: false
+      - key: DIGEST_FROM_EMAIL
+        sync: false
+      - key: DIGEST_FROM_NAME
+        value: "Newsletter Digest"
 
 databases:
   - name: newsletter-db

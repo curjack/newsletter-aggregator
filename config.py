@@ -20,16 +20,18 @@ class Config:
     SQLALCHEMY_DATABASE_URI = database_url or 'sqlite:///dev.db'  # fallback to SQLite
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-    # Email Configuration
-    SMTP_HOST = os.getenv('SMTP_HOST')
-    SMTP_PORT = int(os.getenv('SMTP_PORT', '587'))
-    SMTP_USERNAME = os.getenv('SMTP_USERNAME')
-    SMTP_PASSWORD = os.getenv('SMTP_PASSWORD')
-    SMTP_FROM_EMAIL = os.getenv('SMTP_FROM_EMAIL')
-
-    # Email Service API
-    EMAIL_SERVICE_API_KEY = os.getenv('EMAIL_SERVICE_API_KEY')
-    EMAIL_SERVICE_DOMAIN = os.getenv('EMAIL_SERVICE_DOMAIN')
+    # Mailgun Configuration
+    MAILGUN_API_KEY = os.getenv('MAILGUN_API_KEY')
+    MAILGUN_DOMAIN = os.getenv('MAILGUN_DOMAIN')
+    MAILGUN_BASE_URL = os.getenv('MAILGUN_BASE_URL', 'https://api.mailgun.net/v3')
+    MAILGUN_WEBHOOK_SIGNING_KEY = os.getenv('MAILGUN_WEBHOOK_SIGNING_KEY')
+    
+    # Newsletter receiving email
+    NEWSLETTER_RECEIVING_EMAIL = os.getenv('NEWSLETTER_RECEIVING_EMAIL', 'newsletters@{domain}')
+    
+    # Digest sending configuration
+    DIGEST_FROM_EMAIL = os.getenv('DIGEST_FROM_EMAIL', 'digests@{domain}')
+    DIGEST_FROM_NAME = os.getenv('DIGEST_FROM_NAME', 'Newsletter Digest')
 
     # Security
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'jwt-secret-change-in-production')
@@ -58,6 +60,9 @@ class ProductionConfig(Config):
             'SECRET_KEY',
             'JWT_SECRET_KEY',
             'PASSWORD_SALT',
+            'MAILGUN_API_KEY',
+            'MAILGUN_DOMAIN',
+            'MAILGUN_WEBHOOK_SIGNING_KEY'
         ]
         
         missing = [var for var in required_vars if not os.getenv(var)]
