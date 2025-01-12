@@ -12,14 +12,14 @@ services:
       with app.app_context():
           db.create_all()
       " && \
-      gunicorn 'app:create_app()'
+      gunicorn wsgi:app
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.0
       - key: FLASK_ENV
         value: production
       - key: FLASK_APP
-        value: app.py
+        value: wsgi.py
       - key: DATABASE_URL
         fromDatabase:
           name: newsletter-db
