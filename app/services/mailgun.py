@@ -1,46 +1,67 @@
 import hmac
 import hashlib
-from typing import Dict, Any
-import requests
+from datetime import datetime
 from flask import current_app
 
 class MailgunService:
-    def __init__(self, app=None):
-        self.app = app
-        if app is not None:
-            self.init_app(app)
+    def __init__(self):
+        self.api_key = None
+        self.webhook_signing_key = None
+        self.domain = None
 
     def init_app(self, app):
-        self.api_key = app.config['MAILGUN_API_KEY']
-        self.domain = app.config['MAILGUN_DOMAIN']
-        self.base_url = app.config['MAILGUN_BASE_URL']
-        self.webhook_signing_key = app.config['MAILGUN_WEBHOOK_SIGNING_KEY']
+        self.api_key = app.config.get('MAILGUN_API_KEY')
+        self.webhook_signing_key = app.config.get('MAILGUN_WEBHOOK_SIGNING_KEY')
+        self.domain = app.config.get('MAILGUN_DOMAIN')
+        current_app.logger.info('Mailgun service initialized')
+        current_app.logger.debug(f'Domain: {self.domain}')
 
-    def verify_webhook_signature(self, token: str, timestamp: str, signature: str) -> bool:
+    def verify_webhook_signature(self, request):
         """Verify that the webhook request came from Mailgun."""
-        hmac_digest = hmac.new(
-            key=self.webhook_signing_key.encode('utf-8'),
-            msg=f'{timestamp}{token}'.encode('utf-8'),
-            digestmod=hashlib.sha256
-        ).hexdigest()
-        return hmac.compare_digest(signature, hmac_digest)
+        try:
+            timestamp = request.form.get('timestamp')
+            token = request.form.get('token')
+            signature = request.form.get('signature')
 
-    def parse_webhook_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Parse the webhook data into a format suitable for our Newsletter model."""
-        return {
-            'subject': data.get('subject', ''),
-            'body': data.get('body-plain', ''),  # We'll store the plain text version
-            'from_address': data.get('sender', ''),
-            'date_received': data.get('Date', ''),
-            'topic': data.get('subject', '').split(':')[0].strip(),  # Basic topic extraction
-            'summary': ''  # This will be populated by a summarization service later
-        }
+            current_app.logger.debug('Verifying webhook signature')
+            current_app.logger.debug(f'Timestamp: {timestamp}')
+            current_app.logger.debug(f'Token: {token}')
+            current_app.logger.debug(f'Signature: {signature}')
 
-    def is_valid_newsletter(self, from_address: str) -> bool:
-        """
-        Validate if the email is from a legitimate newsletter source.
-        This can be expanded based on your requirements.
-        """
-        # Add your newsletter validation logic here
-        # For example, check against a whitelist of domains or email addresses
-        return True  # For now, accept all emails 
+            if not all([timestamp, token, signature]):
+                current_app.logger.warning('Missing signature parameters')
+                return False
+
+            hmac_digest = hmac.new(
+                key=self.webhook_signing_key.encode('utf-8'),
+                msg=f'{timestamp}{token}'.encode('utf-8'),
+                digestmod=hashlib.sha256
+            ).hexdigest()
+
+            current_app.logger.debug(f'Computed signature: {hmac_digest}')
+            return hmac.compare_digest(signature, hmac_digest)
+        except Exception as e:
+            current_app.logger.error(f'Error verifying webhook signature: {str(e)}')
+            return False
+
+    def parse_webhook_data(self, form_data):
+        """Parse the webhook data from Mailgun."""
+        try:
+            current_app.logger.debug('Parsing webhook data')
+            return {
+                'from_address': form_data.get('sender'),
+                'subject': form_data.get('subject'),
+                'body': form_data.get('body-plain'),  # or 'stripped-text' depending on Mailgun's config
+                'date_received': datetime.utcnow(),
+                'recipient': form_data.get('recipient'),
+                'message_id': form_data.get('Message-Id')
+            }
+        except Exception as e:
+            current_app.logger.error(f'Error parsing webhook data: {str(e)}')
+            raise
+
+    def is_valid_newsletter(self, data):
+        """Validate if the email is from an allowed newsletter source."""
+        # For testing, accept all emails
+        current_app.logger.debug(f'Validating newsletter from: {data.get("from_address")}')
+        return True 
