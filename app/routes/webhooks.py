@@ -8,12 +8,22 @@ from datetime import datetime
 webhooks = Blueprint('webhooks', __name__)
 mailgun = MailgunService()
 
-@webhooks.route('/webhooks/mailgun', methods=['POST'])
+@webhooks.route('/webhooks/mailgun', methods=['POST', 'GET'])
 def handle_mailgun_webhook():
     current_app.logger.info('==========================================')
-    current_app.logger.info('Received Mailgun webhook request')
+    current_app.logger.info('Received request to webhook endpoint')
     current_app.logger.info(f'Method: {request.method}')
     current_app.logger.info(f'Content-Type: {request.content_type}')
+    
+    # For GET requests, return a simple test response
+    if request.method == 'GET':
+        return jsonify({
+            'status': 'success',
+            'message': 'Webhook endpoint is accessible via GET',
+            'timestamp': str(datetime.utcnow())
+        })
+    
+    # Continue with POST handling
     current_app.logger.info('Headers:')
     for header, value in request.headers.items():
         current_app.logger.info(f'  {header}: {value}')
