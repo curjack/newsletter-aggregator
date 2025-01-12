@@ -30,4 +30,7 @@ def create_app(config_name='default'):
     def index():
         return 'Newsletter Aggregator API'
     
-    return app 
+    return app
+
+# Create the application instance
+app = create_app('production') 

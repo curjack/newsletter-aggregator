@@ -3,14 +3,14 @@ services:
     name: newsletter-aggregator
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: python -c "from app import create_app, db; app = create_app('production'); app.app_context().push(); db.create_all()" && gunicorn wsgi:app
+    startCommand: gunicorn app:app
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.0
       - key: FLASK_ENV
         value: production
       - key: FLASK_APP
-        value: wsgi.py
+        value: app.py
       - key: DATABASE_URL
         fromDatabase:
           name: newsletter-db
