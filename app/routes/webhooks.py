@@ -10,9 +10,19 @@ mailgun = MailgunService()
 
 @webhooks.route('/webhooks/mailgun', methods=['POST'])
 def handle_mailgun_webhook():
+    current_app.logger.info('==========================================')
     current_app.logger.info('Received Mailgun webhook request')
-    current_app.logger.debug(f'Headers: {dict(request.headers)}')
-    current_app.logger.debug(f'Form data: {dict(request.form)}')
+    current_app.logger.info(f'Method: {request.method}')
+    current_app.logger.info(f'Content-Type: {request.content_type}')
+    current_app.logger.info('Headers:')
+    for header, value in request.headers.items():
+        current_app.logger.info(f'  {header}: {value}')
+    current_app.logger.info('Form Data:')
+    for key, value in request.form.items():
+        current_app.logger.info(f'  {key}: {value}')
+    current_app.logger.info('Raw Data:')
+    current_app.logger.info(request.get_data(as_text=True))
+    current_app.logger.info('==========================================')
     
     try:
         # Verify webhook signature
@@ -22,7 +32,9 @@ def handle_mailgun_webhook():
 
         # Parse webhook data
         data = mailgun.parse_webhook_data(request.form)
-        current_app.logger.info(f'Parsed webhook data: {data}')
+        current_app.logger.info('Parsed webhook data:')
+        for key, value in data.items():
+            current_app.logger.info(f'  {key}: {value}')
         
         # Validate newsletter source
         if not mailgun.is_valid_newsletter(data):
@@ -50,6 +62,7 @@ def handle_mailgun_webhook():
 
 @webhooks.route('/webhooks/mailgun/test', methods=['GET'])
 def test_webhook():
+    current_app.logger.info('Test endpoint accessed')
     return jsonify({
         'status': 'success',
         'message': 'Webhook endpoint is accessible',
