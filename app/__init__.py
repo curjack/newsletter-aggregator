@@ -22,6 +22,9 @@ def create_app(config_name='default'):
     mailgun = MailgunService()
     mailgun.init_app(app)
     
+    # Import models
+    from app.models import User, Newsletter, Digest
+    
     # Register blueprints
     from app.routes.webhooks import webhooks
     app.register_blueprint(webhooks, url_prefix='')
