@@ -14,16 +14,10 @@ class Config:
     # Database
     # Handle Render's database URL format
     database_url = os.getenv('DATABASE_URL')
-    if not database_url:
-        raise ValueError("DATABASE_URL environment variable is not set")
-    
-    if database_url.startswith("postgres://"):
+    if database_url and database_url.startswith("postgres://"):
         database_url = database_url.replace("postgres://", "postgresql://", 1)
     
-    SQLALCHEMY_DATABASE_URI = database_url
-    if not SQLALCHEMY_DATABASE_URI:
-        raise ValueError("SQLALCHEMY_DATABASE_URI could not be configured")
-    
+    SQLALCHEMY_DATABASE_URI = database_url or 'sqlite:///dev.db'  # fallback to SQLite
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # Email Configuration
@@ -55,15 +49,15 @@ class ProductionConfig(Config):
     DEBUG = False
     
     def __init__(self):
-        # Validate required environment variables in production
+        super().__init__()
+        if not os.getenv('DATABASE_URL'):
+            raise ValueError("Production environment requires DATABASE_URL to be set")
+        
+        # Validate other required environment variables
         required_vars = [
             'SECRET_KEY',
-            'DATABASE_URL',
             'JWT_SECRET_KEY',
             'PASSWORD_SALT',
-            'SMTP_HOST',
-            'SMTP_USERNAME',
-            'SMTP_PASSWORD',
         ]
         
         missing = [var for var in required_vars if not os.getenv(var)]
@@ -76,7 +70,7 @@ class TestingConfig(Config):
     """Testing configuration."""
     TESTING = True
     DEBUG = True
-    # Add test-specific configurations here
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
 
 # Configuration dictionary
 config = {
