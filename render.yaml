@@ -4,8 +4,8 @@ services:
     env: python
     buildCommand: pip install -r requirements.txt
     startCommand: |
-      python -c "from app import create_app, db; app = create_app('production'); app.app_context().push(); db.create_all()" && \
-      gunicorn 'app:create_app()'
+      python -c "from app import app, db; app.app_context().push(); db.create_all()" && \
+      gunicorn app:app
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.0
