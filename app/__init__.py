@@ -36,4 +36,8 @@ def create_app(config_name='default'):
     return app
 
 # Create the application instance
-app = create_app('production') 
+app = create_app('production')
+
+# Push an application context
+app_context = app.app_context()
+app_context.push() 
