@@ -22,9 +22,6 @@ def create_app(config_name='default'):
     mailgun = MailgunService()
     mailgun.init_app(app)
     
-    # Import models
-    from app.models import User, Newsletter, Digest
-    
     # Register blueprints
     from app.routes.webhooks import webhooks
     app.register_blueprint(webhooks, url_prefix='')
@@ -37,6 +34,9 @@ def create_app(config_name='default'):
 
 # Create the application instance
 app = create_app('production')
+
+# Import models after app creation to avoid circular imports
+from app.models import User, Newsletter, Digest
 
 # Push an application context
 app_context = app.app_context()
