@@ -5,19 +5,23 @@ from config import config
 
 # Initialize Flask app
 app = Flask(__name__)
-app.config.from_object(config['production'])
+app.config.from_object(config['production']())
 
 # Initialize extensions
-db = SQLAlchemy(app)
+db = SQLAlchemy()
+db.init_app(app)
 migrate = Migrate(app, db)
+
+# Push application context
+app.app_context().push()
+
+# Import models
+from app.models import User, Newsletter, Digest
 
 # Initialize Mailgun service
 from app.services.mailgun import MailgunService
 mailgun = MailgunService()
 mailgun.init_app(app)
-
-# Import models
-from app.models import User, Newsletter, Digest
 
 # Register blueprints
 from app.routes.webhooks import webhooks
