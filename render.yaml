@@ -4,8 +4,8 @@ services:
     env: python
     buildCommand: pip install -r requirements.txt
     startCommand: |
-      flask db upgrade && \
-      gunicorn "app:create_app('production')" --bind 0.0.0.0:$PORT --log-level info
+      python -c "from app import app, db; app.app_context().push(); db.create_all()" && \
+      gunicorn app:app
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.0
