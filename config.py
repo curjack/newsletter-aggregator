@@ -12,7 +12,7 @@ class Config:
     DEBUG = os.getenv('FLASK_DEBUG', '0') == '1'
 
     # Database
-    # Handle Render's database URL format
+    # Handle Render's database URL formathttps://your-render-domain/webhooks/mailgun/test
     database_url = os.getenv('DATABASE_URL')
     if database_url and database_url.startswith("postgres://"):
         database_url = database_url.replace("postgres://", "postgresql://", 1)
@@ -52,8 +52,6 @@ class ProductionConfig(Config):
     
     def __init__(self):
         super().__init__()
-        if not os.getenv('DATABASE_URL'):
-            raise ValueError("Production environment requires DATABASE_URL to be set")
         
         # Validate other required environment variables
         required_vars = [
