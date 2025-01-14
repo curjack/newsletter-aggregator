@@ -1,32 +1,37 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
-from config import config
-
-# Initialize Flask app
-app = Flask(__name__)
-app.config.from_object(config['production']())
+import os
 
 # Initialize extensions
 db = SQLAlchemy()
-db.init_app(app)
-migrate = Migrate(app, db)
+migrate = Migrate()
 
-# Push application context
-app.app_context().push()
+def create_app(config_name=None):
+    """Application factory function."""
+    if config_name is None:
+        config_name = os.getenv('FLASK_ENV', 'development')
 
-# Import models
-from app.models import User, Newsletter, Digest
+    app = Flask(__name__)
+    
+    # Load config
+    from config import config
+    app.config.from_object(config[config_name])
 
-# Initialize Mailgun service
-from app.services.mailgun import MailgunService
-mailgun = MailgunService()
-mailgun.init_app(app)
+    # Initialize extensions
+    db.init_app(app)
+    migrate.init_app(app, db)
 
-# Register blueprints
-from app.routes.webhooks import webhooks
-app.register_blueprint(webhooks, url_prefix='')
+    # Register blueprints
+    from app.routes.webhooks import webhooks
+    app.register_blueprint(webhooks)
 
-@app.route('/')
-def index():
-    return 'Newsletter Aggregator API' 
+    # Register CLI commands
+    from app.cli import register_commands
+    register_commands(app)
+
+    @app.route('/')
+    def index():
+        return 'Newsletter Aggregator API'
+
+    return app 
