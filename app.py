@@ -16,33 +16,19 @@ def create_app(config_name=None):
 
     app = Flask(__name__)
     
-    # Debug: Print environment variables
-    print("DEBUG: Environment variables:")
-    print(f"FLASK_ENV: {os.getenv('FLASK_ENV')}")
-    print(f"DATABASE_URL: {os.getenv('DATABASE_URL')}")
-    
     # Load config
     app.config.from_object(config[config_name])
-    
-    # Debug: Print final configuration
-    print("DEBUG: Final configuration:")
-    print(f"SQLALCHEMY_DATABASE_URI: {app.config.get('SQLALCHEMY_DATABASE_URI')}")
 
     # Initialize extensions with app
     db.init_app(app)
     migrate.init_app(app, db)
 
-    # Register models
-    from models import User, Newsletter, Digest
+    # Register blueprints
+    from app.routes.webhooks import webhooks
+    app.register_blueprint(webhooks)
 
-    return app
+    @app.route('/')
+    def index():
+        return 'Newsletter Aggregator API'
 
-# Create app instance
-app = create_app()
-
-@app.route('/')
-def index():
-    return 'Newsletter Aggregator API'
-
-if __name__ == '__main__':
-    app.run() 
+    return app 
