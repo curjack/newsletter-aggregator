@@ -31,4 +31,10 @@ def create_app(config_name=None):
     def index():
         return 'Newsletter Aggregator API'
 
-    return app 
+    return app
+
+# Create a global instance for Gunicorn to use
+app = create_app('production')
+
+if __name__ == '__main__':
+    app.run() 
