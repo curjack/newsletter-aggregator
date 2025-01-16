@@ -4,11 +4,27 @@ services:
     env: python
     buildCommand: pip install -r requirements.txt
     startCommand: |
+      python -c "
+      import time
+      import os
+      from sqlalchemy import create_engine
+      from sqlalchemy.exc import OperationalError
+      
+      # Wait for database to be ready
+      db_url = os.environ.get('DATABASE_URL').replace('postgres://', 'postgresql://')
+      for i in range(5):
+          try:
+              engine = create_engine(db_url)
+              engine.connect()
+              break
+          except OperationalError:
+              print(f'Database connection attempt {i+1} failed, retrying...')
+              time.sleep(5)
+      " && \
       flask db init || true && \
       flask db stamp head || true && \
-      flask db migrate || true && \
+      flask db migrate -m "Initial migration" || true && \
       flask db upgrade && \
-      python -c "from app import app, db; app.app_context().push(); db.create_all()" && \
       gunicorn app:app
     envVars:
       - key: PYTHON_VERSION
