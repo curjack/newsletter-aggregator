@@ -29,16 +29,31 @@ services:
               print(f'Database connection attempt {i+1} failed: {str(e)}')
               time.sleep(5)
       " && \
-      FLASK_DEBUG=1 flask db init || true && \
-      FLASK_DEBUG=1 flask db stamp head || true && \
-      FLASK_DEBUG=1 flask db migrate -m "Initial migration" || true && \
-      FLASK_DEBUG=1 flask db upgrade && \
       FLASK_DEBUG=1 python -c "
-      from app import app, db
+      from flask import Flask
+      from flask_sqlalchemy import SQLAlchemy
+      from flask_migrate import Migrate
+      import os
+      
+      app = Flask(__name__)
+      app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL').replace('postgres://', 'postgresql://')
+      db = SQLAlchemy(app)
+      migrate = Migrate(app, db)
+      
+      from app.models import Newsletter, User, Digest
+      
       with app.app_context():
-          print('Creating all database tables...')
-          db.create_all()
-          print('Database tables created successfully!')
+          print('Initializing database...')
+          if not os.path.exists('migrations'):
+              print('Creating migrations directory...')
+              os.system('flask db init')
+          print('Stamping head...')
+          os.system('flask db stamp head')
+          print('Creating migration...')
+          os.system('flask db migrate')
+          print('Applying migration...')
+          os.system('flask db upgrade')
+          print('Database initialization complete!')
       " && \
       gunicorn app:app
     envVars:
