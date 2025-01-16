@@ -12,12 +12,17 @@ class Config:
     DEBUG = os.getenv('FLASK_DEBUG', '0') == '1'
 
     # Database
-    # Handle Render's database URL formathttps://your-render-domain/webhooks/mailgun/test
     database_url = os.getenv('DATABASE_URL')
-    if database_url and database_url.startswith("postgres://"):
-        database_url = database_url.replace("postgres://", "postgresql://", 1)
+    if database_url:
+        # Handle Render's database URL format
+        if database_url.startswith("postgres://"):
+            database_url = database_url.replace("postgres://", "postgresql://", 1)
+        print(f"Using database URL: {database_url}")
+    else:
+        database_url = 'sqlite:///dev.db'
+        print("No DATABASE_URL found, using SQLite")
     
-    SQLALCHEMY_DATABASE_URI = database_url or 'sqlite:///dev.db'  # fallback to SQLite
+    SQLALCHEMY_DATABASE_URI = database_url
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # Mailgun Configuration
