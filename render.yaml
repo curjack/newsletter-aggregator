@@ -4,6 +4,9 @@ services:
     env: python
     buildCommand: pip install -r requirements.txt
     startCommand: |
+      # Export the DATABASE_URL with proper format for all subsequent commands
+      export DATABASE_URL=$(echo $DATABASE_URL | sed 's/postgres:\/\//postgresql:\/\//') && \
+      echo "Configured DATABASE_URL: $DATABASE_URL" && \
       python -c "
       import time
       import os
@@ -13,9 +16,6 @@ services:
       # Wait for database to be ready
       db_url = os.environ.get('DATABASE_URL')
       print(f'Original DATABASE_URL: {db_url}')
-      if db_url and db_url.startswith('postgres://'):
-          db_url = db_url.replace('postgres://', 'postgresql://')
-          print(f'Modified DATABASE_URL: {db_url}')
       
       for i in range(5):
           try:
@@ -29,14 +29,15 @@ services:
               print(f'Database connection attempt {i+1} failed: {str(e)}')
               time.sleep(5)
       " && \
-      FLASK_DEBUG=1 python -c "
+      # Initialize database with migrations
+      FLASK_APP=app.py FLASK_ENV=production python -c "
       from flask import Flask
       from flask_sqlalchemy import SQLAlchemy
       from flask_migrate import Migrate
       import os
       
       app = Flask(__name__)
-      app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL').replace('postgres://', 'postgresql://')
+      app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['DATABASE_URL']
       db = SQLAlchemy(app)
       migrate = Migrate(app, db)
       
@@ -46,16 +47,17 @@ services:
           print('Initializing database...')
           if not os.path.exists('migrations'):
               print('Creating migrations directory...')
-              os.system('flask db init')
+              os.system('FLASK_APP=app.py flask db init')
           print('Stamping head...')
-          os.system('flask db stamp head')
+          os.system('FLASK_APP=app.py flask db stamp head')
           print('Creating migration...')
-          os.system('flask db migrate')
+          os.system('FLASK_APP=app.py flask db migrate')
           print('Applying migration...')
-          os.system('flask db upgrade')
+          os.system('FLASK_APP=app.py flask db upgrade')
           print('Database initialization complete!')
       " && \
-      gunicorn app:app
+      # Start the application
+      gunicorn --log-level debug app:app
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.0
