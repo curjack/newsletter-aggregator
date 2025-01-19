@@ -30,7 +30,7 @@ def create_app(config_name=None):
     db.init_app(app)
     migrate.init_app(app, db)
 
-    # Initialize services
+    # Initialize Mailgun service as a proper Flask extension
     from app.services.mailgun import MailgunService
     mailgun = MailgunService()
     mailgun.init_app(app)

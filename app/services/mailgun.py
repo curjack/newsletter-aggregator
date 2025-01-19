@@ -4,17 +4,37 @@ from datetime import datetime
 from flask import current_app
 
 class MailgunService:
-    def __init__(self):
+    def __init__(self, app=None):
+        self.app = app
         self.api_key = None
         self.webhook_signing_key = None
         self.domain = None
+        
+        if app is not None:
+            self.init_app(app)
 
     def init_app(self, app):
+        # Store configuration
         self.api_key = app.config.get('MAILGUN_API_KEY')
         self.webhook_signing_key = app.config.get('MAILGUN_WEBHOOK_SIGNING_KEY')
         self.domain = app.config.get('MAILGUN_DOMAIN')
-        current_app.logger.info('Mailgun service initialized')
-        current_app.logger.debug(f'Domain: {self.domain}')
+        
+        # Register to app extensions
+        if not hasattr(app, 'extensions'):
+            app.extensions = {}
+        app.extensions['mailgun'] = self
+
+        # Log only if logger is configured
+        if app.logger:
+            app.logger.info('Mailgun service initialized')
+            app.logger.debug(f'Domain: {self.domain}')
+
+    @staticmethod
+    def get_current_service():
+        """Get the current Mailgun service instance."""
+        if not hasattr(current_app, 'extensions') or 'mailgun' not in current_app.extensions:
+            raise RuntimeError("Mailgun service not initialized. Did you forget to call init_app()?")
+        return current_app.extensions['mailgun']
 
     def verify_webhook_signature(self, request):
         """Verify that the webhook request came from Mailgun."""

@@ -9,7 +9,6 @@ from app.services.mailgun import MailgunService
 
 webhooks = Blueprint('webhooks', __name__)
 logger = logging.getLogger(__name__)
-mailgun = MailgunService()
 
 @webhooks.route('/health')
 def health_check():
@@ -48,8 +47,8 @@ def handle_mailgun_webhook():
         })
 
     try:
-        # Initialize Mailgun service with current app config
-        mailgun.init_app(current_app)
+        # Get the initialized Mailgun service from extensions
+        mailgun = MailgunService.get_current_service()
         
         # Verify webhook signature
         if not mailgun.verify_webhook_signature(request):
