@@ -5,9 +5,11 @@ import time
 from sqlalchemy.exc import SQLAlchemyError
 from app import db
 from app.models import Newsletter
+from app.services.mailgun import MailgunService
 
 webhooks = Blueprint('webhooks', __name__)
 logger = logging.getLogger(__name__)
+mailgun = MailgunService()
 
 @webhooks.route('/health')
 def health_check():
@@ -46,15 +48,19 @@ def handle_mailgun_webhook():
         })
 
     try:
-        # Extract email data
-        email_data = {
-            'sender': request.form.get('sender'),
-            'recipient': request.form.get('recipient'),
-            'subject': request.form.get('subject'),
-            'body_plain': request.form.get('body-plain'),
-            'stripped_text': request.form.get('stripped-text'),
-            'timestamp': request.form.get('timestamp')
-        }
+        # Initialize Mailgun service with current app config
+        mailgun.init_app(current_app)
+        
+        # Verify webhook signature
+        if not mailgun.verify_webhook_signature(request):
+            logger.error('Invalid webhook signature')
+            return jsonify({
+                'status': 'error',
+                'message': 'Invalid webhook signature'
+            }), 401
+
+        # Parse webhook data
+        email_data = mailgun.parse_webhook_data(request.form)
         
         logger.info('Parsed Email Data:')
         for key, value in email_data.items():
@@ -62,6 +68,14 @@ def handle_mailgun_webhook():
             if len(value_str) > 100:
                 value_str = value_str[:100] + '...'
             logger.info(f'  {key}: {value_str}')
+
+        # Validate newsletter
+        if not mailgun.is_valid_newsletter(email_data):
+            logger.warning('Invalid newsletter source')
+            return jsonify({
+                'status': 'error',
+                'message': 'Invalid newsletter source'
+            }), 400
 
         # Create newsletter entry with retry mechanism
         max_retries = 3
@@ -73,8 +87,8 @@ def handle_mailgun_webhook():
                 newsletter = Newsletter(
                     user_id=1,  # TODO: Implement user lookup based on recipient
                     subject=email_data['subject'],
-                    body=email_data['stripped_text'] or email_data['body_plain'],
-                    date_received=datetime.utcnow(),
+                    body=email_data.get('body', ''),
+                    date_received=email_data['date_received'],
                     topic='Uncategorized'  # TODO: Implement topic extraction
                 )
                 
