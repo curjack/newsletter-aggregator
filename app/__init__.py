@@ -23,10 +23,6 @@ def create_app(config_name=None):
     from config import config
     app.config.from_object(config[config_name])
 
-    # Log configuration for debugging
-    logger.info(f"Initializing app in {config_name} mode")
-    logger.info(f"Database URL: {app.config['SQLALCHEMY_DATABASE_URI']}")
-
     # Initialize extensions
     db.init_app(app)
     migrate.init_app(app, db)
@@ -43,6 +39,11 @@ def create_app(config_name=None):
     # Register CLI commands
     from app.cli import register_commands
     register_commands(app)
+
+    # Log configuration inside app context
+    with app.app_context():
+        logger.info(f"Initializing app in {config_name} mode")
+        logger.info(f"Database URL: {app.config['SQLALCHEMY_DATABASE_URI']}")
 
     @app.route('/')
     def index():
