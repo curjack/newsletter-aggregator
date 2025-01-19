@@ -11,18 +11,10 @@ class Config:
     FLASK_ENV = os.getenv('FLASK_ENV', 'development')
     DEBUG = os.getenv('FLASK_DEBUG', '0') == '1'
 
-    # Database
+    # Database Configuration
     database_url = os.environ.get('DATABASE_URL')
-    if database_url:
-        # Handle Render's database URL format
-        if database_url.startswith("postgres://"):
-            database_url = database_url.replace("postgres://", "postgresql://", 1)
-        print(f"Using database URL: {database_url}")
-    else:
-        if os.getenv('FLASK_ENV') == 'production':
-            raise ValueError("DATABASE_URL must be set in production")
-        database_url = 'sqlite:///dev.db'
-        print("Development mode: Using SQLite database")
+    if not database_url:
+        raise ValueError("DATABASE_URL must be set")
     
     SQLALCHEMY_DATABASE_URI = database_url
     SQLALCHEMY_TRACK_MODIFICATIONS = False
@@ -80,7 +72,8 @@ class TestingConfig(Config):
     """Testing configuration."""
     TESTING = True
     DEBUG = True
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+    # Use a test database URL instead of in-memory SQLite
+    SQLALCHEMY_DATABASE_URI = os.environ.get('TEST_DATABASE_URL') or os.environ.get('DATABASE_URL')
 
 # Configuration dictionary
 config = {
