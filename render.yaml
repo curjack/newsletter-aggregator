@@ -4,60 +4,79 @@ services:
     env: python
     buildCommand: pip install -r requirements.txt
     startCommand: |
-      # Export the DATABASE_URL with proper format for all subsequent commands
-      export DATABASE_URL=$(echo $DATABASE_URL | sed 's/postgres:\/\//postgresql:\/\//') && \
-      echo "Configured DATABASE_URL: $DATABASE_URL" && \
+      # Wait for database with improved error handling
       python -c "
       import time
       import os
+      import sys
       from sqlalchemy import create_engine
       from sqlalchemy.exc import OperationalError
       
-      # Wait for database to be ready
-      db_url = os.environ.get('DATABASE_URL')
-      print(f'Original DATABASE_URL: {db_url}')
+      def wait_for_db(url, max_retries=5, retry_delay=5):
+          print(f'Checking database connection (max {max_retries} attempts)...')
+          for attempt in range(max_retries):
+              try:
+                  print(f'Attempt {attempt + 1} of {max_retries}...')
+                  engine = create_engine(url)
+                  with engine.connect() as conn:
+                      conn.execute('SELECT 1')
+                  print('Database connection successful!')
+                  return True
+              except Exception as e:
+                  print(f'Attempt {attempt + 1} failed: {str(e)}')
+                  if attempt < max_retries - 1:
+                      print(f'Retrying in {retry_delay} seconds...')
+                      time.sleep(retry_delay)
+                  else:
+                      print('All database connection attempts failed')
+                      return False
       
-      for i in range(5):
-          try:
-              print(f'Attempting database connection {i+1}...')
-              engine = create_engine(db_url)
-              conn = engine.connect()
-              print('Database connection successful!')
-              conn.close()
-              break
-          except Exception as e:
-              print(f'Database connection attempt {i+1} failed: {str(e)}')
-              time.sleep(5)
+      # Format database URL
+      db_url = os.environ.get('DATABASE_URL', '')
+      if db_url.startswith('postgres://'):
+          db_url = db_url.replace('postgres://', 'postgresql://', 1)
+      
+      if not wait_for_db(db_url):
+          sys.exit(1)
       " && \
-      # Initialize database with migrations
-      FLASK_APP=app.py FLASK_ENV=production python -c "
+      # Initialize database with proper migrations
+      python -c "
       from flask import Flask
       from flask_sqlalchemy import SQLAlchemy
-      from flask_migrate import Migrate
+      from flask_migrate import Migrate, upgrade
       import os
+      import sys
       
-      app = Flask(__name__)
-      app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['DATABASE_URL']
-      db = SQLAlchemy(app)
-      migrate = Migrate(app, db)
+      try:
+          print('Initializing Flask application...')
+          app = Flask(__name__)
+          app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL').replace('postgres://', 'postgresql://')
+          db = SQLAlchemy(app)
+          migrate = Migrate(app, db)
+          
+          print('Running database migrations...')
+          with app.app_context():
+              upgrade()
+          print('Database migrations completed successfully!')
       
-      from app.models import Newsletter, User, Digest
-      
-      with app.app_context():
-          print('Initializing database...')
-          if not os.path.exists('migrations'):
-              print('Creating migrations directory...')
-              os.system('FLASK_APP=app.py flask db init')
-          print('Stamping head...')
-          os.system('FLASK_APP=app.py flask db stamp head')
-          print('Creating migration...')
-          os.system('FLASK_APP=app.py flask db migrate')
-          print('Applying migration...')
-          os.system('FLASK_APP=app.py flask db upgrade')
-          print('Database initialization complete!')
+      except Exception as e:
+          print(f'Error during database initialization: {str(e)}')
+          sys.exit(1)
       " && \
-      # Start the application
-      gunicorn --log-level debug app:app
+      # Start Gunicorn with optimized settings
+      gunicorn app:app \
+        --workers=4 \
+        --threads=2 \
+        --worker-class=gthread \
+        --worker-tmp-dir=/dev/shm \
+        --timeout=120 \
+        --keep-alive=5 \
+        --max-requests=1000 \
+        --max-requests-jitter=50 \
+        --log-level=info \
+        --access-logfile=- \
+        --error-logfile=- \
+        --capture-output
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.0
@@ -89,6 +108,11 @@ services:
         sync: false
       - key: DIGEST_FROM_NAME
         value: Newsletter Digest
+    healthCheckPath: /health
+    numInstances: 1
+    autoscaling:
+      min: 1
+      max: 1
 
 databases:
   - name: newsletter-db

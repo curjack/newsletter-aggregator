@@ -2,10 +2,15 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 import os
+import logging
 
 # Initialize extensions
 db = SQLAlchemy()
 migrate = Migrate()
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 def create_app(config_name=None):
     """Application factory function."""
@@ -17,6 +22,10 @@ def create_app(config_name=None):
     # Load config
     from config import config
     app.config.from_object(config[config_name])
+
+    # Log configuration for debugging
+    logger.info(f"Initializing app in {config_name} mode")
+    logger.info(f"Database URL: {app.config['SQLALCHEMY_DATABASE_URI']}")
 
     # Initialize extensions
     db.init_app(app)
@@ -33,6 +42,24 @@ def create_app(config_name=None):
     @app.route('/')
     def index():
         return 'Newsletter Aggregator API'
+
+    # Register error handlers
+    @app.errorhandler(500)
+    def handle_500(error):
+        logger.error(f"Internal Server Error: {error}")
+        return {
+            'status': 'error',
+            'message': 'Internal Server Error',
+            'error': str(error)
+        }, 500
+
+    @app.errorhandler(404)
+    def handle_404(error):
+        return {
+            'status': 'error',
+            'message': 'Not Found',
+            'error': str(error)
+        }, 404
 
     return app
 
