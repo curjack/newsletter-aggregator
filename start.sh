@@ -47,4 +47,7 @@ app = create_app('production')
 with app.app_context():
     with db.engine.connect() as conn:
         tables = conn.execute(text('SELECT tablename FROM pg_tables WHERE schemaname = current_schema()')).fetchall()
-        print(f'Current tables: {[table[0] for table in tables]}')" 
+        print(f'Current tables: {[table[0] for table in tables]}')"
+
+echo "Starting Gunicorn..."
+exec gunicorn app:app 
