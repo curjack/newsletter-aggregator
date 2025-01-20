@@ -4,7 +4,7 @@ from datetime import datetime
 import time
 from sqlalchemy.exc import SQLAlchemyError
 from app import db
-from app.models import Newsletter, User, classify_newsletter
+from app.models import Newsletter, User, classify_newsletter, extract_summary
 from app.services.mailgun import MailgunService
 
 webhooks = Blueprint('webhooks', __name__)
@@ -108,7 +108,8 @@ def handle_mailgun_webhook():
                     subject=email_data['subject'],
                     body=email_data.get('body', ''),
                     date_received=email_data['date_received'],
-                    topic=classify_newsletter(email_data['subject'], email_data.get('body', ''))
+                    topic=classify_newsletter(email_data['subject'], email_data.get('body', '')),
+                    summary=extract_summary(email_data.get('body', ''))
                 )
                 
                 db.session.add(newsletter)
@@ -116,6 +117,7 @@ def handle_mailgun_webhook():
                 
                 logger.info(f'Successfully created newsletter entry with ID: {newsletter.newsletter_id}')
                 logger.info(f'Classified topic: {newsletter.topic}')
+                logger.info(f'Generated summary length: {len(newsletter.summary)} chars')
                 
                 return jsonify({
                     'status': 'success',

@@ -7,4 +7,5 @@ Flask-Migrate==4.0.5
 bcrypt==4.1.1
 gunicorn==21.2.0
 requests==2.31.0
-python-http-client==3.3.7 
+python-http-client==3.3.7
+beautifulsoup4==4.12.2 
