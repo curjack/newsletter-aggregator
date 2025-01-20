@@ -39,28 +39,50 @@ services:
       if not wait_for_db(db_url):
           sys.exit(1)
       " && \
-      # Initialize database with proper migrations
+      # Initialize database and run migrations
       python -c "
-      from flask import Flask
-      from flask_sqlalchemy import SQLAlchemy
-      from flask_migrate import Migrate, upgrade
       import os
       import sys
+      from flask import Flask
+      from flask_sqlalchemy import SQLAlchemy
+      from flask_migrate import Migrate
       
       try:
-          print('Initializing Flask application...')
-          app = Flask(__name__)
-          app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL').replace('postgres://', 'postgresql://')
-          db = SQLAlchemy(app)
-          migrate = Migrate(app, db)
+          print('Initializing Flask application for migrations...')
+          from app import create_app, db
+          
+          app = create_app('production')
           
           print('Running database migrations...')
           with app.app_context():
+              # Import models to ensure they're known to Flask-Migrate
+              from app.models import User, Newsletter, Digest
+              
+              # Create migrations directory if it doesn't exist
+              from flask_migrate import init, upgrade
+              from pathlib import Path
+              if not Path('migrations').exists():
+                  print('Initializing migrations directory...')
+                  init()
+              
+              # Generate and run migrations
+              from flask_migrate import migrate
+              print('Generating migrations...')
+              migrate()
+              
+              print('Applying migrations...')
               upgrade()
-          print('Database migrations completed successfully!')
+              
+              # Verify tables exist
+              tables = db.engine.table_names()
+              print(f'Current database tables: {tables}')
+              
+              print('Database migrations completed successfully!')
       
       except Exception as e:
           print(f'Error during database initialization: {str(e)}')
+          import traceback
+          traceback.print_exc()
           sys.exit(1)
       " && \
       # Start Gunicorn with optimized settings
