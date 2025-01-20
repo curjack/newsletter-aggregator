@@ -39,97 +39,29 @@ services:
       if not wait_for_db(db_url):
           sys.exit(1)
       " && \
-      # Initialize database and run migrations
-      python -c "
-      import os
-      import sys
-      from flask import Flask
-      from flask_sqlalchemy import SQLAlchemy
-      from flask_migrate import Migrate
-      
-      try:
-          print('Initializing Flask application for migrations...')
-          from app import create_app, db
-          
-          app = create_app('production')
-          
-          print('Running database migrations...')
-          with app.app_context():
-              # Import models to ensure they're known to Flask-Migrate
-              from app.models import User, Newsletter, Digest
-              
-              # Create migrations directory if it doesn't exist
-              from flask_migrate import init, upgrade
-              from pathlib import Path
-              if not Path('migrations').exists():
-                  print('Initializing migrations directory...')
-                  init()
-              
-              # Generate and run migrations
-              from flask_migrate import migrate
-              print('Generating migrations...')
-              migrate()
-              
-              print('Applying migrations...')
-              upgrade()
-              
-              # Verify tables exist
-              tables = db.engine.table_names()
-              print(f'Current database tables: {tables}')
-              
-              print('Database migrations completed successfully!')
-      
-      except Exception as e:
-          print(f'Error during database initialization: {str(e)}')
-          import traceback
-          traceback.print_exc()
-          sys.exit(1)
-      " && \
-      # Start Gunicorn with optimized settings
-      gunicorn app:app \
-        --workers=4 \
-        --threads=2 \
-        --worker-class=gthread \
-        --worker-tmp-dir=/dev/shm \
-        --timeout=120 \
-        --keep-alive=5 \
-        --max-requests=1000 \
-        --max-requests-jitter=50 \
-        --log-level=info \
-        --access-logfile=- \
-        --error-logfile=- \
-        --capture-output
+      # Run database migrations as a separate script
+      FLASK_APP=app flask db upgrade && \
+      # Start the application
+      gunicorn app:app
     envVars:
       - key: PYTHON_VERSION
-        value: 3.12.0
-      - key: FLASK_ENV
-        value: production
-      - key: FLASK_APP
-        value: app.py
+        value: 3.10.0
       - key: DATABASE_URL
         fromDatabase:
           name: newsletter-db
           property: connectionString
-      - key: SECRET_KEY
-        generateValue: true
-      - key: JWT_SECRET_KEY
-        generateValue: true
-      - key: PASSWORD_SALT
-        generateValue: true
-      - key: MAILGUN_DOMAIN
-        sync: false
       - key: MAILGUN_API_KEY
         sync: false
-      - key: MAILGUN_WEBHOOK_SIGNING_KEY
+      - key: MAILGUN_DOMAIN
         sync: false
-      - key: MAILGUN_BASE_URL
-        value: https://api.mailgun.net/v3
-      - key: NEWSLETTER_RECEIVING_EMAIL
-        sync: false
-      - key: DIGEST_FROM_EMAIL
-        sync: false
-      - key: DIGEST_FROM_NAME
-        value: Newsletter Digest
+      - key: FLASK_APP
+        value: app
+      - key: FLASK_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: WEB_CONCURRENCY
+        value: 2
     healthCheckPath: /health
     numInstances: 1
     autoscaling:
