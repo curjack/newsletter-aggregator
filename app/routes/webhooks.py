@@ -4,11 +4,28 @@ from datetime import datetime
 import time
 from sqlalchemy.exc import SQLAlchemyError
 from app import db
-from app.models import Newsletter
+from app.models import Newsletter, User
 from app.services.mailgun import MailgunService
 
 webhooks = Blueprint('webhooks', __name__)
 logger = logging.getLogger(__name__)
+
+# Constants
+SYSTEM_USER_EMAIL = 'system@newsletter-aggregator.com'
+
+def get_or_create_system_user():
+    """Get the system user ID, creating it if it doesn't exist."""
+    system_user = User.query.filter_by(email=SYSTEM_USER_EMAIL).first()
+    if not system_user:
+        logger.warning('System user not found, creating it')
+        system_user = User(
+            email=SYSTEM_USER_EMAIL,
+            password_hash='not_used_for_system_user',
+            created_at=datetime.utcnow()
+        )
+        db.session.add(system_user)
+        db.session.commit()
+    return system_user
 
 @webhooks.route('/health')
 def health_check():
@@ -76,6 +93,9 @@ def handle_mailgun_webhook():
                 'message': 'Invalid newsletter source'
             }), 400
 
+        # Get system user
+        system_user = get_or_create_system_user()
+        
         # Create newsletter entry with retry mechanism
         max_retries = 3
         retry_delay = 1  # seconds
@@ -84,7 +104,7 @@ def handle_mailgun_webhook():
         for attempt in range(max_retries):
             try:
                 newsletter = Newsletter(
-                    user_id=1,  # TODO: Implement user lookup based on recipient
+                    user_id=system_user.user_id,
                     subject=email_data['subject'],
                     body=email_data.get('body', ''),
                     date_received=email_data['date_received'],
