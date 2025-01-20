@@ -2,10 +2,7 @@ services:
   - type: web
     name: newsletter-aggregator
     env: python
-    buildCommand: |
-      set -e
-      pip install -r requirements.txt
-      python migrations.py
+    buildCommand: bash ./build.sh
     startCommand: |
       # Wait for database
       python -c "
