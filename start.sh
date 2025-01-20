@@ -14,10 +14,13 @@ def wait_for_db(url, max_retries=5, retry_delay=5):
         try:
             print(f'Attempt {attempt + 1} of {max_retries}...')
             engine = create_engine(url)
-            with engine.connect() as conn:
-                conn.execute('SELECT 1')
-            print('Database connection successful!')
-            return True
+            try:
+                with engine.connect():
+                    print('Database connection successful!')
+                return True
+            except Exception as e:
+                print(f'Connection failed: {str(e)}')
+                return False
         except Exception as e:
             print(f'Attempt {attempt + 1} failed: {str(e)}')
             if attempt < max_retries - 1:
