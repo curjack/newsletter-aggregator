@@ -2,46 +2,8 @@ services:
   - type: web
     name: newsletter-aggregator
     env: python
-    buildCommand: bash ./build.sh
-    startCommand: |
-      # Wait for database
-      python -c "
-      import time
-      import os
-      import sys
-      from sqlalchemy import create_engine, text
-      
-      def wait_for_db(url, max_retries=5, retry_delay=5):
-          print(f'Checking database connection (max {max_retries} attempts)...')
-          for attempt in range(max_retries):
-              try:
-                  print(f'Attempt {attempt + 1} of {max_retries}...')
-                  engine = create_engine(url)
-                  with engine.connect() as conn:
-                      # Verify tables exist
-                      tables = conn.execute(text('SELECT tablename FROM pg_tables WHERE schemaname = current_schema()')).fetchall()
-                      if not tables:
-                          raise Exception('No tables found in database')
-                      print(f'Database connected and verified! Tables: {[table[0] for table in tables]}')
-                      return True
-              except Exception as e:
-                  print(f'Attempt {attempt + 1} failed: {str(e)}')
-                  if attempt < max_retries - 1:
-                      print(f'Retrying in {retry_delay} seconds...')
-                      time.sleep(retry_delay)
-                  else:
-                      print('All database connection attempts failed')
-                      return False
-      
-      # Format database URL
-      db_url = os.environ.get('DATABASE_URL', '')
-      if db_url.startswith('postgres://'):
-          db_url = db_url.replace('postgres://', 'postgresql://', 1)
-      
-      if not wait_for_db(db_url):
-          sys.exit(1)
-      " && \
-      gunicorn app:app
+    buildCommand: pip install -r requirements.txt
+    startCommand: bash ./prestart.sh && gunicorn app:app
     envVars:
       - key: PYTHON_VERSION
         value: 3.10.0
